@@ -24,7 +24,8 @@
         "ts": "never"
       }
     ],
-    "prettier/prettier": ["error", { "singleQuote": true, "parser": "flow" }]
+    "prettier/prettier": ["error", { "singleQuote": true, "parser": "flow" }],
+    "class-methods-use-this": "off"
   },
   "settings": {
     "import/resolver": {
