@@ -1,6 +1,7 @@
 /* eslint-disable import/no-unresolved */
 import { Router } from 'express';
-import { startOfHour, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+import CreateAppointmentService from '../services/CreateAppointmentsService'
 
 import AppointmentsRepository from '../repositories/AppointmentsRepository';
 
@@ -9,30 +10,33 @@ const appointmentsRepository = new AppointmentsRepository();
 
 appointmentsRouter.get('/', (request, response) => {
   const appointments = appointmentsRepository.all();
-  return response.status('200').json({
+  return response.status(200).json({
     status: 'success',
     appointments,
   });
 });
 
 appointmentsRouter.post('/', (request, response) => {
-  const { provider, date } = request.body;
-  const parsedDate = startOfHour(parseISO(date));
+  try {
+    const { provider, date } = request.body;
 
-  const findAppointmentInSameDate =
-    appointmentsRepository.findByDate(parsedDate);
+    const parsedDate = parseISO(date);
 
-  if (findAppointmentInSameDate)
-    response
-      .status(400)
-      .json({ status: 'fail', message: 'Appointment alread taken!' });
+    const createAppointment = new CreateAppointmentService(
+      appointmentsRepository,
+    );
 
-  const appointment = appointmentsRepository.create({
-    provider,
-    date: parsedDate,
-  });
-
-  return response.json(appointment);
+    const appointment = createAppointment.execute({
+      provider,
+      date: parsedDate,
+    });
+    return response.json(appointment);
+  } catch (err) {
+    return response.status(400).json({
+      status: 'fail',
+      message: err.message,
+    });
+  }
 });
 
 export default appointmentsRouter;
