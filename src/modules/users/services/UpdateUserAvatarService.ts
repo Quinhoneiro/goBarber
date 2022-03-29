@@ -1,40 +1,40 @@
-import { getRepository } from 'typeorm';
-import path from 'path';
-import fs from 'fs';
 import User from '@modules/users/infra/typeorm/entities/User';
-import uploadConfig from '@config/upload';
+import IUsersRepository from '@modules/users/repositories/IUserRepository';
+import { injectable, inject } from 'tsyringe';
 
 import AppError from '@shared/errors/AppError';
+import IStorageProvider from '@shared/container/providers/StorageProvider/models/IStorageProvider';
 
-interface Request {
+interface IRequest {
   user_id: string;
   avatarFilename: string;
 }
 
+@injectable()
 export default class UpdateUserAvatarService {
-  public async execute({ user_id, avatarFilename }: Request): Promise<User> {
-    const usersRepository = getRepository(User);
+  constructor(
+    @inject('UsersRepository')
+    private usersRepository: IUsersRepository,
+    @inject('StorageProvider')
+    private storageProvider: IStorageProvider,
+  ) {}
 
-    const user = await usersRepository.findOne(user_id);
+  public async execute({ user_id, avatarFilename }: IRequest): Promise<User> {
+    const user = await this.usersRepository.findById(user_id);
 
     if (!user) {
       throw new AppError(`Only authenticated users can change avatar`, 401);
     }
 
     if (user.avatar) {
-      // verificar se um arquivo existe. Caso não exista retorna vazio
-      const userAvatarFilePath = path.join(uploadConfig.directory, user.avatar);
-      const userAvatarExists = await fs.promises.stat(userAvatarFilePath);
-
-      // Deletar avatar anterior
-      if (userAvatarExists) {
-        await fs.promises.unlink(userAvatarFilePath);
-      }
+      await this.storageProvider.deleteFile(user.avatar);
     }
 
-    user.avatar = avatarFilename;
+    const fileName = await this.storageProvider.saveFile(avatarFilename);
 
-    await usersRepository.save(user);
+    user.avatar = fileName;
+
+    await this.usersRepository.save(user);
 
     return user;
   }
